@@ -1,1 +1,1 @@
-# infrastructure-monitoring
+# FROG infrastructure definition for monitoring
