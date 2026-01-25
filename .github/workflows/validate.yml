@@ -14,11 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare .env for validation
+        run: |
+          set -euo pipefail
+          # Create temporary .env with sensible defaults for validation
+          cat > .env << 'EOF'
+          BESZEL_PORT_HOST=18090
+          BESZEL_DATA=./.data/beszel
+          KUMA_PORT_HOST=13001
+          KUMA_DATA=./.data/kuma
+          DATABASUS_PORT_HOST=14005
+          DATABASUS_DATA=./.data/databasus
+          TZ=UTC
+          EOF
+          mkdir -p ./.data/beszel ./.data/kuma ./.data/databasus
+
       - name: Validate Docker Compose files
         run: |
           set -euo pipefail
-          # Prepare optional .env if exists
-          [ -f .env ] || touch .env
           echo "Validating compose/beszel/compose.yml"
           docker compose -f compose/beszel/compose.yml config >/dev/null
           echo "Validating compose/uptime-kuma/compose.yml"
