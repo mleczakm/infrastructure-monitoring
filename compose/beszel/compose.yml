@@ -1,0 +1,22 @@
+
+services:
+  beszel:
+    image: henrygd/beszel
+    container_name: beszel
+    restart: unless-stopped
+    ports:
+      - "${BESZEL_PORT_HOST}:8090"
+    volumes:
+      - "${BESZEL_DATA}:/beszel_data"
+    environment:
+      - TZ=${TZ}
+
+  beszel-agent:
+    image: henrygd/beszel-agent
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - BESZEL_URL=http://127.0.0.1:8090

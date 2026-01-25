@@ -1,0 +1,12 @@
+
+services:
+  databasus:
+    image: databasus/databasus:latest
+    container_name: databasus
+    restart: unless-stopped
+    ports:
+      - "${DATABASUS_PORT_HOST}:4005"
+    volumes:
+      - "${DATABASUS_DATA}:/databasus-data"
+    environment:
+      - TZ=${TZ}

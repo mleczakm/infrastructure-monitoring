@@ -1,0 +1,37 @@
+name: Validate Infrastructure Config
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose files
+        run: |
+          set -euo pipefail
+          # Prepare optional .env if exists
+          [ -f .env ] || touch .env
+          echo "Validating compose/beszel/compose.yml"
+          docker compose -f compose/beszel/compose.yml config >/dev/null
+          echo "Validating compose/uptime-kuma/compose.yml"
+          docker compose -f compose/uptime-kuma/compose.yml config >/dev/null
+          echo "Validating compose/databasus/compose.yml"
+          docker compose -f compose/databasus/compose.yml config >/dev/null
+          # echo "Validating compose/backup/resticprofile/compose.yml"
+          # docker compose -f compose/backup/resticprofile/compose.yml config >/dev/null
+
+      - name: Check workflow syntax
+        run: |
+          set -euo pipefail
+          # Basic YAML parse using yq
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends yq >/dev/null
+          yq -o=json '.name' .github/workflows/deploy.yml >/dev/null
+          yq -o=json '.name' .github/workflows/weekly-login-update.yml >/dev/null

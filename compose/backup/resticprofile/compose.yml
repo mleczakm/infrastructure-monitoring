@@ -1,0 +1,15 @@
+
+services:
+  resticprofile:
+    image: ghcr.io/creativeprojects/resticprofile:latest
+    container_name: resticprofile
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY}
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+      - SFTP_PASSWORD=${SFTP_PASSWORD}
+    volumes:
+      - "${RESTICPROFILE_DIR}/profiles.yaml:/resticprofile/profiles.yaml:ro"
+      - "/:/host:ro"
+    command: ["-n","default","schedule","--cron","0 30 3 * * *"]

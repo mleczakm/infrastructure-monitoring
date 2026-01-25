@@ -1,0 +1,111 @@
+name: Deploy to FROG
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare .env
+        run: |
+          set -euo pipefail
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            : > .env
+          fi
+          # Ensure required variables are set; replace if present, otherwise append
+          if grep -q '^FROG_HOST=' .env; then
+            sed -i "s/^FROG_HOST=.*/FROG_HOST=${{ secrets.FROG_SERVER }}/" .env
+          else
+            echo "FROG_HOST=${{ secrets.FROG_SERVER }}" >> .env
+          fi
+          if grep -q '^FROG_SSH_PORT=' .env; then
+            sed -i "s/^FROG_SSH_PORT=.*/FROG_SSH_PORT=${{ secrets.FROG_SSH_PORT }}" .env
+          else
+            echo "FROG_SSH_PORT=${{ secrets.FROG_SSH_PORT }}" >> .env
+          fi
+
+          # Derive FROG number from server hostname (first numeric sequence)
+          HOSTNAME="${{ secrets.FROG_SERVER }}"
+          FROG_NUM=$(printf "%s" "$HOSTNAME" | grep -oE '[0-9]+' | head -n1 || true)
+          if [ -z "${FROG_NUM:-}" ]; then
+            echo "Could not derive FROG number from hostname '$HOSTNAME' — skipping dynamic hostname generation" >&2
+          else
+            BESZEL_HOSTNAME="beszel-${FROG_NUM}.wykr.es"
+            KUMA_HOSTNAME="kuma-${FROG_NUM}.wykr.es"
+            DATABASUS_HOSTNAME="databasus-${FROG_NUM}.wykr.es"
+            if grep -q '^BESZEL_HOSTNAME=' .env; then
+              sed -i "s/^BESZEL_HOSTNAME=.*/BESZEL_HOSTNAME=${BESZEL_HOSTNAME}/" .env
+            else
+              echo "BESZEL_HOSTNAME=${BESZEL_HOSTNAME}" >> .env
+            fi
+            if grep -q '^KUMA_HOSTNAME=' .env; then
+              sed -i "s/^KUMA_HOSTNAME=.*/KUMA_HOSTNAME=${KUMA_HOSTNAME}/" .env
+            else
+              echo "KUMA_HOSTNAME=${KUMA_HOSTNAME}" >> .env
+            fi
+            if grep -q '^DATABASUS_HOSTNAME=' .env; then
+              sed -i "s/^DATABASUS_HOSTNAME=.*/DATABASUS_HOSTNAME=${DATABASUS_HOSTNAME}/" .env
+            else
+              echo "DATABASUS_HOSTNAME=${DATABASUS_HOSTNAME}" >> .env
+            fi
+          fi
+
+      - name: Copy files to FROG
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.FROG_SERVER }}
+          username: ${{ secrets.FROG_LOGIN }}
+          password: ${{ secrets.FROG_PASSWORD }}
+          port: ${{ secrets.FROG_SSH_PORT }}
+          source: |
+            compose/**
+            scripts/install_docker_alpine.sh
+            .env
+          target: /opt/infrastructure-monitoring
+          overwrite: true
+
+      - name: Provision Docker & Compose on Alpine
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.FROG_SERVER }}
+          username: ${{ secrets.FROG_LOGIN }}
+          password: ${{ secrets.FROG_PASSWORD }}
+          port: ${{ secrets.FROG_SSH_PORT }}
+          script: |
+            set -e
+            CMD='
+            chmod +x /opt/infrastructure-monitoring/scripts/install_docker_alpine.sh
+            /opt/infrastructure-monitoring/scripts/install_docker_alpine.sh
+            '
+            # Use SSH user password for sudo (non-interactive)
+            echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
+
+      - name: Start services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.FROG_SERVER }}
+          username: ${{ secrets.FROG_LOGIN }}
+          password: ${{ secrets.FROG_PASSWORD }}
+          port: ${{ secrets.FROG_SSH_PORT }}
+          script: |
+            set -e
+            CMD='
+            cd /opt/infrastructure-monitoring
+            [ -f .env ] && export $(grep -v '^#' .env | xargs) || true
+            docker compose -f compose/beszel/compose.yml up -d
+            docker compose -f compose/uptime-kuma/compose.yml up -d
+            docker compose -f compose/databasus/compose.yml up -d
+            # (opcjonalnie)
+            # docker compose -f compose/backup/resticprofile/compose.yml up -d
+            '
+            # Use SSH user password for sudo (non-interactive)
+            echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"

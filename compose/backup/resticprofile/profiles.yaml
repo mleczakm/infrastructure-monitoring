@@ -1,0 +1,17 @@
+
+version: 1
+default:
+  repository: ${RESTIC_REPOSITORY}
+  password: ${RESTIC_PASSWORD}
+  backup:
+    source:
+      - /host/etc
+      - /host/opt/infrastructure-monitoring
+    exclude:
+      - /host/proc
+      - /host/sys
+      - /host/tmp
+  retention:
+    keep-daily: 7
+    keep-weekly: 4
+    keep-monthly: 6

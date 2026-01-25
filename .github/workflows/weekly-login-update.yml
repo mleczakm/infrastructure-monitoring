@@ -1,0 +1,58 @@
+name: Weekly FROG login & update
+
+on:
+  schedule:
+    - cron: '7 6 * * 1'  # co poniedziałek 06:07 UTC
+  workflow_dispatch:
+
+jobs:
+  weekly-login-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try SSH login and update packages (Alpine)
+        id: sshupdate
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.FROG_SERVER }}
+          username: ${{ secrets.FROG_LOGIN }}
+          password: ${{ secrets.FROG_PASSWORD }}
+          port: ${{ secrets.FROG_SSH_PORT }}
+          script: |
+            set -e
+            CMD='
+            echo "Login timestamp: $(date -u)"
+            apk update && apk upgrade -U || true
+            '
+            # Use SSH user password for sudo (non-interactive)
+            echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
+            # Opcjonalnie: odśwież obrazy kontenerów (bardzo ostrożnie na FROG):
+            # docker pull henrygd/beszel || true
+            # docker pull henrygd/beszel-agent || true
+            # docker pull louislam/uptime-kuma:2 || true
+            # docker pull databasus/databasus:latest || true
+
+      - name: Create GitHub Issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const server = process.env.FROG_SERVER || 'unknown';
+            const title = `ALERT: Nieudane logowanie/aktualizacja na FROG (${server})`;
+            const lines = [
+              'Automatyczny login/aktualizacja nie powiodły się.',
+              '',
+              'Sprawdź dostępność serwera i dane SSH.',
+              '',
+              `Czas (UTC): ${new Date().toISOString()}`
+            ];
+            const body = lines.join('\n');
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['infra-alert']
+            });
+            core.info(`Issue created: #${issue.number}`)
+        env:
+          FROG_SERVER: ${{ secrets.FROG_SERVER }}
