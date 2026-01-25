@@ -23,12 +23,12 @@ jobs:
           fi
           # Ensure required variables are set; replace if present, otherwise append
           if grep -q '^FROG_HOST=' .env; then
-            sed -i "s/^FROG_HOST=.*/FROG_HOST=${{ secrets.FROG_SERVER }}/" .env
+            sed -i "s|^FROG_HOST=.*|FROG_HOST=${{ secrets.FROG_SERVER }}|" .env
           else
             echo "FROG_HOST=${{ secrets.FROG_SERVER }}" >> .env
           fi
           if grep -q '^FROG_SSH_PORT=' .env; then
-            sed -i "s/^FROG_SSH_PORT=.*/FROG_SSH_PORT=${{ secrets.FROG_SSH_PORT }}" .env
+            sed -i "s|^FROG_SSH_PORT=.*|FROG_SSH_PORT=${{ secrets.FROG_SSH_PORT }}|" .env
           else
             echo "FROG_SSH_PORT=${{ secrets.FROG_SSH_PORT }}" >> .env
           fi
@@ -43,17 +43,17 @@ jobs:
             KUMA_HOSTNAME="kuma-${FROG_NUM}.wykr.es"
             DATABASUS_HOSTNAME="databasus-${FROG_NUM}.wykr.es"
             if grep -q '^BESZEL_HOSTNAME=' .env; then
-              sed -i "s/^BESZEL_HOSTNAME=.*/BESZEL_HOSTNAME=${BESZEL_HOSTNAME}/" .env
+              sed -i "s|^BESZEL_HOSTNAME=.*|BESZEL_HOSTNAME=${BESZEL_HOSTNAME}|" .env
             else
               echo "BESZEL_HOSTNAME=${BESZEL_HOSTNAME}" >> .env
             fi
             if grep -q '^KUMA_HOSTNAME=' .env; then
-              sed -i "s/^KUMA_HOSTNAME=.*/KUMA_HOSTNAME=${KUMA_HOSTNAME}/" .env
+              sed -i "s|^KUMA_HOSTNAME=.*|KUMA_HOSTNAME=${KUMA_HOSTNAME}|" .env
             else
               echo "KUMA_HOSTNAME=${KUMA_HOSTNAME}" >> .env
             fi
             if grep -q '^DATABASUS_HOSTNAME=' .env; then
-              sed -i "s/^DATABASUS_HOSTNAME=.*/DATABASUS_HOSTNAME=${DATABASUS_HOSTNAME}/" .env
+              sed -i "s|^DATABASUS_HOSTNAME=.*|DATABASUS_HOSTNAME=${DATABASUS_HOSTNAME}|" .env
             else
               echo "DATABASUS_HOSTNAME=${DATABASUS_HOSTNAME}" >> .env
             fi
