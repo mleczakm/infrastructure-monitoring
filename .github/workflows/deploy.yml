@@ -74,7 +74,7 @@ jobs:
           overwrite: true
 
       - name: Provision Docker & Compose on Alpine
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.FROG_SERVER }}
           username: ${{ secrets.FROG_LOGIN }}
@@ -90,7 +90,7 @@ jobs:
             echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
 
       - name: Start services
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.4
         with:
           host: ${{ secrets.FROG_SERVER }}
           username: ${{ secrets.FROG_LOGIN }}
@@ -107,5 +107,4 @@ jobs:
             # (opcjonalnie)
             # docker compose -f compose/backup/resticprofile/compose.yml up -d
             '
-            # Use SSH user password for sudo (non-interactive)
-            echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
+            echo "${{ env.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
