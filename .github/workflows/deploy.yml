@@ -60,16 +60,13 @@ jobs:
           fi
 
       - name: Copy files to FROG
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.FROG_SERVER }}
           username: ${{ secrets.FROG_LOGIN }}
           password: ${{ secrets.FROG_PASSWORD }}
           port: ${{ secrets.FROG_SSH_PORT }}
-          source: |
-            compose/**
-            scripts/install_docker_alpine.sh
-            .env
+          source: "./compose/**,./scripts/install_docker_alpine.sh,./.env"
           target: /opt/infrastructure-monitoring
           overwrite: true
 
