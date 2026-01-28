@@ -33,11 +33,11 @@ jobs:
         run: |
           set -euo pipefail
           echo "Validating compose/beszel/compose.yml"
-          docker compose -f compose/beszel/compose.yml config >/dev/null
+          docker compose --env-file .env -f compose/beszel/compose.yml config >/dev/null
           echo "Validating compose/uptime-kuma/compose.yml"
-          docker compose -f compose/uptime-kuma/compose.yml config >/dev/null
+          docker compose --env-file .env -f compose/uptime-kuma/compose.yml config >/dev/null
           echo "Validating compose/databasus/compose.yml"
-          docker compose -f compose/databasus/compose.yml config >/dev/null
+          docker compose --env-file .env -f compose/databasus/compose.yml config >/dev/null
           # echo "Validating compose/backup/resticprofile/compose.yml"
           # docker compose -f compose/backup/resticprofile/compose.yml config >/dev/null
 

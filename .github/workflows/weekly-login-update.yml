@@ -8,6 +8,8 @@ on:
 jobs:
   weekly-login-update:
     runs-on: ubuntu-latest
+    environment: production
+
     steps:
       - name: Try SSH login and update packages (Alpine)
         id: sshupdate
