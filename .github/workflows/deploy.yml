@@ -8,6 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout
@@ -104,4 +105,4 @@ jobs:
             # (opcjonalnie)
             # docker compose -f compose/backup/resticprofile/compose.yml up -d
             '
-            echo "${{ env.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
+            echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
