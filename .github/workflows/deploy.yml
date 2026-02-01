@@ -72,6 +72,7 @@ jobs:
             CMD='
             mkdir -p /opt/infrastructure-monitoring
             chmod 0755 /opt/infrastructure-monitoring
+            chown -R ${{ secrets.FROG_LOGIN }}: /opt/infrastructure-monitoring
             '
             # Use SSH user password for sudo (non-interactive)
             echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
