@@ -60,6 +60,22 @@ jobs:
             fi
           fi
 
+      - name: Prepare deploy directories
+        uses: appleboy/ssh-action@v1.2.4
+        with:
+          host: ${{ secrets.FROG_SERVER }}
+          username: ${{ secrets.FROG_LOGIN }}
+          password: ${{ secrets.FROG_PASSWORD }}
+          port: ${{ secrets.FROG_SSH_PORT }}
+          script: |
+            set -e
+            CMD='
+            mkdir -p /opt/infrastructure-monitoring
+            chmod 0755 /opt/infrastructure-monitoring
+            '
+            # Use SSH user password for sudo (non-interactive)
+            echo "${{ secrets.FROG_PASSWORD }}" | sudo -S -i sh -lc "$CMD"
+
       - name: Copy files to FROG
         uses: appleboy/scp-action@v1.0.0
         with:
