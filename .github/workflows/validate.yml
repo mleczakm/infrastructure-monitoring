@@ -46,5 +46,5 @@ jobs:
           set -euo pipefail
           # Basic YAML parse using yq
           sudo apt-get update && sudo apt-get install -y --no-install-recommends yq >/dev/null
-          yq -o=json '.name' .github/workflows/deploy.yml >/dev/null
-          yq -o=json '.name' .github/workflows/weekly-login-update.yml >/dev/null
+          yq '.name' .github/workflows/deploy.yml >/dev/null
+          yq '.name' .github/workflows/weekly-login-update.yml >/dev/null
