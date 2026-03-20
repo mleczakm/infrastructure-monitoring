@@ -1,4 +1,3 @@
-
 services:
   beszel:
     image: henrygd/beszel
@@ -18,5 +17,9 @@ services:
     network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./beszel_agent_data:/var/lib/beszel-agent
     environment:
-      - BESZEL_URL=http://127.0.0.1:8090
+      LISTEN: 45876
+      KEY: ${BESZEL_AGENT_KEY}
+      TOKEN: ${BESZEL_AGENT_TOKEN}
+      HUB_URL: ${BESZEL_AGENT_HUB_URL}
