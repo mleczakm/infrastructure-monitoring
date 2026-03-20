@@ -7,6 +7,9 @@ services:
     ports:
       - "${KUMA_PORT_HOST}:3001"
     volumes:
-      - "${KUMA_DATA}:/app/data"
+      - "kuma_data:/app/data"
     environment:
       - TZ=${TZ}
+
+volumes:
+  kuma_data:
