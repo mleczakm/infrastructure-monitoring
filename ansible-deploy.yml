@@ -15,6 +15,8 @@
     ansible_user: "{{ frog_login }}"
     ansible_ssh_pass: "{{ frog_password }}"
     ansible_port: "{{ frog_ssh_port }}"
+    ansible_become_pass: "{{ frog_password }}"
+    ansible_become_method: sudo
   tasks:
     - name: Ensure /opt/infrastructure-monitoring exists
       become: true
