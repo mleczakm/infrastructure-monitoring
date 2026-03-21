@@ -24,5 +24,8 @@ jobs:
           FROG_SSH_PORT: ${{ secrets.FROG_SSH_PORT }}
           FROG_LOGIN: ${{ secrets.FROG_LOGIN }}
           FROG_PASSWORD: ${{ secrets.FROG_PASSWORD }}
+          BESZEL_AGENT_KEY: ${{ secrets.BESZEL_AGENT_KEY }}
+          BESZEL_AGENT_TOKEN: ${{ secrets.BESZEL_AGENT_TOKEN }}
+          BESZEL_AGENT_HUB_URL: ${{ secrets.BESZEL_AGENT_HUB_URL }}
         run: |
           ansible-playbook -i ansible-inventory ansible-deploy.yml --ssh-extra-args='-o StrictHostKeyChecking=no'

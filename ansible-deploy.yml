@@ -1,6 +1,6 @@
 ---
 - name: Deploy infrastructure-monitoring to FROG
-  hosts: all
+  hosts: frog
   # No global become; use become only where needed
   vars:
     frog_host: "{{ lookup('env', 'FROG_SERVER') }}"
@@ -10,9 +10,11 @@
     # Derive FROG number from hostname (first numeric sequence)
     frog_num: "{{ frog_host | regex_search('([0-9]+)', '\\1') }}"
     beszel_hostname: "frog03-{{ frog_num }}.wykr.es"
-    kuma_hostname: "kuma-{{ frog_num }}.wykr.es"
-    databasus_hostname: "databasus-{{ frog_num }}.wykr.es"
+    kuma_hostname: "frog03-{{ (frog_num | int + 10000) }}.wykr.es"
     env_file: "/opt/infrastructure-monitoring/.env"
+    ansible_user: "{{ frog_login }}"
+    ansible_ssh_pass: "{{ frog_password }}"
+    ansible_port: "{{ frog_ssh_port }}"
   tasks:
     - name: Ensure /opt/infrastructure-monitoring exists
       become: true
@@ -61,29 +63,23 @@
             regexp: '^KUMA_HOSTNAME='
             line: "KUMA_HOSTNAME={{ kuma_hostname }}"
             create: yes
-        - name: Set/replace DATABASUS_HOSTNAME
-          lineinfile:
-            path: .env
-            regexp: '^DATABASUS_HOSTNAME='
-            line: "DATABASUS_HOSTNAME={{ databasus_hostname }}"
-            create: yes
         - name: Set/replace KEY
           lineinfile:
             path: .env
-            regexp: '^KEY='
-            line: "KEY={{ lookup('env', 'BESZEL_AGENT_KEY') | default('your_beszel_agent_key_here', true) }}"
+            regexp: '^BESZEL_AGENT_KEY='
+            line: "BESZEL_AGENT_KEY={{ lookup('env', 'BESZEL_AGENT_KEY') }}"
             create: yes
         - name: Set/replace TOKEN
           lineinfile:
             path: .env
-            regexp: '^TOKEN='
-            line: "TOKEN={{ lookup('env', 'BESZEL_AGENT_TOKEN') | default('your_beszel_agent_token_here', true) }}"
+            regexp: '^BESZEL_AGENT_TOKEN='
+            line: "BESZEL_AGENT_TOKEN={{ lookup('env', 'BESZEL_AGENT_TOKEN') }}"
             create: yes
         - name: Set/replace HUB_URL
           lineinfile:
             path: .env
-            regexp: '^HUB_URL='
-            line: "HUB_URL={{ lookup('env', 'BESZEL_AGENT_HUB_URL') | default('http://frog03-21363.wykr.es:8090', true) }}"
+            regexp: '^BESZEL_AGENT_HUB_URL='
+            line: "BESZEL_AGENT_HUB_URL={{ lookup('env', 'BESZEL_AGENT_HUB_URL') }}"
             create: yes
 
     - name: Copy compose directory to remote
@@ -151,22 +147,3 @@
         docker compose -f compose/uptime-kuma/compose.yml up -d
       args:
         executable: /bin/sh
-
-    - name: Check required secrets in .env before deploy
-      delegate_to: localhost
-      run_once: true
-      block:
-        - name: Ensure required secrets are present in .env
-          ansible.builtin.shell: |
-            missing=0
-            for var in KEY TOKEN HUB_URL; do
-              if ! grep -q "^$var=" .env || grep -q "^$var=$" .env; then
-                echo "Missing or empty: $var" >&2
-                missing=1
-              fi
-            done
-            exit $missing
-          args:
-            executable: /bin/sh
-          register: env_check
-          failed_when: env_check.rc != 0
