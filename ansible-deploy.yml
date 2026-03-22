@@ -1,4 +1,3 @@
----
 - name: Deploy infrastructure-monitoring to FROG
   hosts: frog
   # No global become; use become only where needed
@@ -18,26 +17,6 @@
     ansible_become_pass: "{{ frog_password }}"
     ansible_become_method: sudo
   tasks:
-    - name: Ensure /opt/infrastructure-monitoring exists
-      become: true
-      file:
-        path: /opt/infrastructure-monitoring
-        state: directory
-        owner: "{{ frog_login }}"
-        group: "{{ frog_login }}"
-        mode: '0755'
-
-
-    - name: Copy compose directory to remote
-      become: true
-      copy:
-        src: compose/
-        dest: /opt/infrastructure-monitoring/compose/
-        owner: "{{ frog_login }}"
-        group: "{{ frog_login }}"
-        mode: preserve
-
-
     - name: Install Docker and Docker Compose on Alpine
       become: true
       block:
@@ -49,8 +28,6 @@
           ansible.builtin.apk:
             name:
               - docker
-              - docker-compose
-              - docker-cli-compose
             state: present
         - name: Ensure Docker service is started and enabled
           ansible.builtin.service:
@@ -79,14 +56,51 @@
           when: docker_hello_result.rc != 0
 
 
-    - name: Start beszel service
+    - name: Stop and remove existing beszel container if present
       become: true
       shell: |
-        cd /opt/infrastructure-monitoring
-        BESZEL_PORT_HOST="{{ beszel_port }}" \
-        BESZEL_AGENT_KEY="{{ lookup('env', 'BESZEL_AGENT_KEY') }}" \
-        BESZEL_AGENT_TOKEN="{{ lookup('env', 'BESZEL_AGENT_TOKEN') }}" \
-        BESZEL_AGENT_HUB_URL="https://{{ beszel_hostname }}" \
-        docker compose -f compose/beszel/compose.yml up -d
+        docker rm -f beszel || true
+      args:
+        executable: /bin/sh
+
+    - name: Start beszel container
+      become: true
+      shell: |
+        docker volume create beszel_data &&
+        docker run -d --name beszel --restart unless-stopped \
+          -p "{{ beszel_port }}:8090" \
+          -v beszel_data:/beszel_data \
+          -e TZ="Europe/Warsaw" \
+          henrygd/beszel
+      args:
+        executable: /bin/sh
+
+    - name: Set beszel-agent config variables from environment
+      set_fact:
+        agent_key: "{{ lookup('env', 'BESZEL_AGENT_KEY') | default('') }}"
+        agent_token: "{{ lookup('env', 'BESZEL_AGENT_TOKEN') | default('') }}"
+        agent_hub_url: "https://{{ beszel_hostname }}"
+
+    - name: Stop and remove existing beszel-agent container if present
+      become: true
+      when: agent_key != '' and agent_token != '' and agent_hub_url != ''
+      shell: |
+        docker rm -f beszel-agent || true
+      args:
+        executable: /bin/sh
+
+    - name: Start beszel-agent container
+      become: true
+      when: agent_key != '' and agent_token != '' and agent_hub_url != ''
+      shell: |
+        docker volume create beszel_agent_data &&
+        docker run -d --name beszel-agent --restart unless-stopped --privileged \
+          -v /var/run/docker.sock:/var/run/docker.sock:ro \
+          -v beszel_agent_data:/var/lib/beszel-agent \
+          -e LISTEN=45876 \
+          -e KEY="{{ agent_key }}" \
+          -e TOKEN="{{ agent_token }}" \
+          -e HUB_URL="{{ agent_hub_url }}" \
+          henrygd/beszel-agent
       args:
         executable: /bin/sh
