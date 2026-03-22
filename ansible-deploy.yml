@@ -61,7 +61,7 @@
 
     - name: Install Docker SDK for Python (pip)
       become: true
-      community.general.pip:
+      ansible.builtin.pip:
         name: docker
         state: present
         executable: pip3
