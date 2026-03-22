@@ -29,8 +29,8 @@ jobs:
       - name: Install Ansible + dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install "ansible>=9,<11"
-          ansible-galaxy collection install community.docker community.general
+          pip install requirements.txt
+          ansible-galaxy collection install ansible-collections-requirements.yml
 
       # (Opcjonalnie, lepsze security niż StrictHostKeyChecking=no)
       # Jeśli nie chcesz tego utrzymywać, usuń ten krok i zostań przy -o StrictHostKeyChecking=no
