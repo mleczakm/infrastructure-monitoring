@@ -5,18 +5,38 @@ on:
   push:
     branches: ["main"]
 
+concurrency:
+  group: frog-production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    timeout-minutes: 20
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python and Ansible
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Ansible + dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          pip install ansible
+          python -m pip install --upgrade pip
+          pip install "ansible>=9,<11"
+          ansible-galaxy collection install community.docker
+
+      # (Opcjonalnie, lepsze security niż StrictHostKeyChecking=no)
+      # Jeśli nie chcesz tego utrzymywać, usuń ten krok i zostań przy -o StrictHostKeyChecking=no
+      - name: Add FROG host key to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.FROG_SSH_PORT }}" "${{ secrets.FROG_SERVER }}" >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook
         env:
@@ -26,6 +46,6 @@ jobs:
           FROG_PASSWORD: ${{ secrets.FROG_PASSWORD }}
           BESZEL_AGENT_KEY: ${{ secrets.BESZEL_AGENT_KEY }}
           BESZEL_AGENT_TOKEN: ${{ secrets.BESZEL_AGENT_TOKEN }}
-          BESZEL_AGENT_HUB_URL: ${{ secrets.BESZEL_AGENT_HUB_URL }}
         run: |
-          ansible-playbook -i ansible-inventory ansible-deploy.yml --ssh-extra-args='-o StrictHostKeyChecking=no'
+          ansible-playbook -i ansible-inventory ansible-deploy.yml \
+            --diff

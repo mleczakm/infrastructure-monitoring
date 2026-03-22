@@ -1,23 +1,48 @@
 name: Validate Infrastructure Config
 
 on:
-  push:
-    branches: ["main"]
   pull_request:
+    branches: ["main"]
+  push:
     branches: ["main"]
   workflow_dispatch:
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check workflow syntax
+      # 1) GitHub Actions workflow lint
+      - name: Lint GitHub Actions workflows (actionlint)
+        uses: rhysd/actionlint@v1
+
+      # 2) YAML lint (opcjonalnie, ale polecam)
+      - name: YAML lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: ".github/workflows ansible-deploy.yml ansible-inventory"
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 160
+              truthy: disable
+
+      # 3) Ansible lint (polecam)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install ansible-lint
         run: |
-          set -euo pipefail
-          # Basic YAML parse using yq
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends yq >/dev/null
-          yq '.name' .github/workflows/deploy.yml >/dev/null
-          yq '.name' .github/workflows/weekly-login-update.yml >/dev/null
+          python -m pip install --upgrade pip
+          pip install ansible-lint
+
+      - name: Run ansible-lint
+        run: |
+          ansible-lint ansible-deploy.yml

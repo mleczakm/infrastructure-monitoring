@@ -1,106 +1,220 @@
+---
 - name: Deploy infrastructure-monitoring to FROG
   hosts: frog
+  gather_facts: true
+
   # No global become; use become only where needed
   vars:
-    frog_host: "{{ lookup('env', 'FROG_SERVER') }}"
-    frog_ssh_port: "{{ lookup('env', 'FROG_SSH_PORT') }}"
-    frog_login: "{{ lookup('env', 'FROG_LOGIN') }}"
-    frog_password: "{{ lookup('env', 'FROG_PASSWORD') }}"
-    frog_prefix: "{{ frog_host.split('.')[0] }}"
+    # Connection / target
+    frog_host: "{{ lookup('env', 'FROG_SERVER') | default('', true) }}"
+    frog_ssh_port: "{{ lookup('env', 'FROG_SSH_PORT') | default('', true) }}"
+    frog_login: "{{ lookup('env', 'FROG_LOGIN') | default('frog', true) }}"
+    frog_password: "{{ lookup('env', 'FROG_PASSWORD') | default('', true) }}"
 
+    frog_prefix: "{{ (frog_host.split('.') | first) }}"
+
+    # Beszel (HUB)
     beszel_port: "{{ (frog_ssh_port | int + 10000) }}"
     beszel_hostname: "{{ frog_prefix }}-{{ beszel_port }}.wykr.es"
+    beszel_image: "henrygd/beszel:latest"   # TODO: pin to a concrete version tag
 
+    # Beszel Agent
+    beszel_agent_image: "henrygd/beszel-agent:latest"  # TODO: pin to a concrete version tag
+    beszel_agent_name: "beszel-agent"
+    beszel_agent_volume: "beszel_agent_data"
+    beszel_agent_listen: "45876"  # listens inside container; outbound-only (no host publish)
+
+    # Ansible connection vars derived from env
     ansible_user: "{{ frog_login }}"
     ansible_ssh_pass: "{{ frog_password }}"
     ansible_port: "{{ frog_ssh_port }}"
     ansible_become_pass: "{{ frog_password }}"
     ansible_become_method: sudo
+
+  pre_tasks:
+    - name: Validate required environment variables are set
+      no_log: true
+      ansible.builtin.assert:
+        that:
+          - frog_host | length > 0
+          - frog_ssh_port | length > 0
+          - frog_password | length > 0
+        fail_msg: >-
+          Missing one or more required env vars: FROG_SERVER, FROG_SSH_PORT, FROG_PASSWORD.
+          Export them and rerun.
+      tags: [always]
+
   tasks:
-    - name: Install Docker and Docker Compose on Alpine
+    # -------------------------
+    # Bootstrap: Docker on Alpine
+    # -------------------------
+    - name: Install Docker + Python Docker SDK on Alpine
       become: true
-      block:
-        - name: Ensure apk index is updated
-          ansible.builtin.shell: apk update
-          args:
-            executable: /bin/sh
-        - name: Install Docker and Docker Compose plugin
-          ansible.builtin.apk:
-            name:
-              - docker
-            state: present
-        - name: Ensure Docker service is started and enabled
-          ansible.builtin.service:
-            name: docker
-            state: started
-            enabled: true
-        - name: Add user to docker group
-          ansible.builtin.user:
-            name: "{{ frog_login }}"
-            groups: docker
-            append: yes
-        - name: Test Docker with hello-world
-          become: true
-          shell: |
-            docker run --rm hello-world
-          register: docker_hello_result
-          ignore_errors: true
-        - name: Reboot server if Docker hello-world fails
-          become: true
-          shell: reboot
-          when: docker_hello_result.rc != 0
-          ignore_errors: true
-        - name: Fail playbook if Docker hello-world fails
-          fail:
-            msg: "Docker hello-world test failed. Server rebooted. Please rerun the playbook after the server is back online."
-          when: docker_hello_result.rc != 0
+      ansible.builtin.apk:
+        name:
+          - docker
+          - python3
+          - py3-docker
+        state: present
+        update_cache: true
+      tags: [bootstrap]
 
-
-    - name: Stop and remove existing beszel container if present
+    - name: Ensure Docker service is started and enabled
       become: true
-      shell: |
-        docker rm -f beszel || true
-      args:
-        executable: /bin/sh
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      tags: [bootstrap]
 
-    - name: Start beszel container
+    - name: Add login user to docker group
       become: true
-      shell: |
-        docker volume create beszel_data &&
-        docker run -d --name beszel --restart unless-stopped \
-          -p "{{ beszel_port }}:8090" \
-          -v beszel_data:/beszel_data \
-          -e TZ="Europe/Warsaw" \
-          henrygd/beszel
-      args:
-        executable: /bin/sh
+      ansible.builtin.user:
+        name: "{{ frog_login }}"
+        groups: docker
+        append: true
+      tags: [bootstrap]
 
+    - name: Verify Docker daemon is reachable
+      become: true
+      ansible.builtin.command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: false
+      tags: [bootstrap]
+
+    - name: Reboot if Docker daemon not responding
+      become: true
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: docker_info.rc != 0
+      tags: [bootstrap]
+
+    - name: Wait for SSH after reboot
+      ansible.builtin.wait_for_connection:
+        timeout: 600
+      when: docker_info.rc != 0
+      tags: [bootstrap]
+
+    - name: Verify Docker daemon is reachable after reboot
+      become: true
+      ansible.builtin.command: docker info
+      register: docker_info_after
+      changed_when: false
+      tags: [bootstrap]
+
+    - name: Fail if Docker still not reachable
+      ansible.builtin.fail:
+        msg: "Docker daemon is not reachable (docker info failed) even after reboot."
+      when: docker_info_after.rc != 0
+      tags: [bootstrap]
+
+    # -------------------------
+    # Beszel HUB (published port)
+    # -------------------------
+    - name: Ensure beszel volume exists
+      become: true
+      community.docker.docker_volume:
+        name: beszel_data
+        state: present
+      tags: [beszel]
+
+    - name: Ensure beszel container is running
+      become: true
+      community.docker.docker_container:
+        name: beszel
+        image: "{{ beszel_image }}"
+        state: started
+        restart_policy: unless-stopped
+        published_ports:
+          - "{{ beszel_port }}:8090"
+        volumes:
+          - "beszel_data:/beszel_data"
+        env:
+          TZ: "Europe/Warsaw"
+        pull: true
+        recreate: true
+        restart: true
+      tags: [beszel]
+
+    # Health-check for Beszel (local)
+    - name: Wait for beszel port to be open
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ beszel_port }}"
+        timeout: 60
+      tags: [beszel, health]
+
+    - name: Check beszel HTTP responds
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ beszel_port }}/"
+        status_code: [200, 302]
+      register: beszel_http
+      changed_when: false
+      tags: [beszel, health]
+
+    # -------------------------
+    # Beszel Agent (outbound-only; no published ports)
+    # -------------------------
     - name: Set beszel-agent config variables from environment
-      set_fact:
-        agent_key: "{{ lookup('env', 'BESZEL_AGENT_KEY') | default('') }}"
-        agent_token: "{{ lookup('env', 'BESZEL_AGENT_TOKEN') | default('') }}"
-        agent_hub_url: "https://{{ beszel_hostname }}"
+      no_log: true
+      ansible.builtin.set_fact:
+        beszel_agent_key: "{{ lookup('env', 'BESZEL_AGENT_KEY') | default('', true) }}"
+        beszel_agent_token: "{{ lookup('env', 'BESZEL_AGENT_TOKEN') | default('', true) }}"
+        beszel_agent_hub_url: "https://{{ beszel_hostname }}"
+      tags: [agent]
 
-    - name: Stop and remove existing beszel-agent container if present
-      become: true
-      when: agent_key != '' and agent_token != '' and agent_hub_url != ''
-      shell: |
-        docker rm -f beszel-agent || true
-      args:
-        executable: /bin/sh
+    - name: Decide if beszel-agent should be deployed
+      ansible.builtin.set_fact:
+        deploy_beszel_agent: "{{ (beszel_agent_key | length > 0) and (beszel_agent_token | length > 0) }}"
+      tags: [agent]
 
-    - name: Start beszel-agent container
+    - name: Ensure beszel-agent volume exists
       become: true
-      when: agent_key != '' and agent_token != '' and agent_hub_url != ''
-      shell: |
-        docker volume create beszel_agent_data &&
-        docker run -d --name beszel-agent --restart unless-stopped --privileged \
-          -v /var/run/docker.sock:/var/run/docker.sock:ro \
-          -v beszel_agent_data:/var/lib/beszel-agent \
-          -e LISTEN=45876 \
-          -e KEY="{{ agent_key }}" \
-          -e TOKEN="{{ agent_token }}" \
-          -e HUB_URL="{{ agent_hub_url }}" \
-          henrygd/beszel-agent
-      args:
-        executable: /bin/sh
+      when: deploy_beszel_agent
+      community.docker.docker_volume:
+        name: "{{ beszel_agent_volume }}"
+        state: present
+      tags: [agent]
+
+    - name: Ensure beszel-agent container is running (outbound only)
+      become: true
+      when: deploy_beszel_agent
+      no_log: true
+      community.docker.docker_container:
+        name: "{{ beszel_agent_name }}"
+        image: "{{ beszel_agent_image }}"
+        state: started
+        restart_policy: unless-stopped
+        privileged: true
+        volumes:
+          - "/var/run/docker.sock:/var/run/docker.sock:ro"
+          - "{{ beszel_agent_volume }}:/var/lib/beszel-agent"
+        env:
+          LISTEN: "{{ beszel_agent_listen }}"
+          KEY: "{{ beszel_agent_key }}"
+          TOKEN: "{{ beszel_agent_token }}"
+          HUB_URL: "{{ beszel_agent_hub_url }}"
+        pull: true
+        recreate: true
+        restart: true
+      tags: [agent]
+
+    - name: Ensure beszel-agent container is absent when not configured
+      become: true
+      when: not deploy_beszel_agent
+      community.docker.docker_container:
+        name: "{{ beszel_agent_name }}"
+        state: absent
+        force_kill: true
+      tags: [agent]
+
+    # Health-check for agent (no port publish => inspect running)
+    - name: Check beszel-agent container state
+      become: true
+      when: deploy_beszel_agent
+      ansible.builtin.command: "docker inspect -f '{{'{{'}}.State.Running{{'}}'}}' {{ beszel_agent_name }}"
+      register: beszel_agent_running
+      changed_when: false
+      failed_when: beszel_agent_running.stdout.strip() != 'true'
+      tags: [agent, health]
