@@ -59,12 +59,13 @@
         update_cache: true
       tags: [bootstrap]
 
-    - name: Install Docker SDK for Python (pip)
+    - name: Install Docker SDK for Python (pip, break system packages)
       become: true
       ansible.builtin.pip:
         name: docker
         state: present
         executable: pip3
+        break_system_packages: true
       tags: [bootstrap]
 
     - name: Ensure Docker service is started and enabled
