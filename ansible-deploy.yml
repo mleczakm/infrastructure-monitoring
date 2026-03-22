@@ -48,16 +48,24 @@
     # -------------------------
     # Bootstrap: Docker on Alpine
     # -------------------------
-    - name: Install Docker + Python Docker SDK on Alpine
+    - name: Install Docker + Python on Alpine
       become: true
       community.general.apk:
         name:
           - docker
           - python3
-          - py3-docker
+          - py3-pip
         state: present
         update_cache: true
-      tags: [bootstrap]
+      tags: [ bootstrap ]
+
+    - name: Install Docker SDK for Python (pip)
+      become: true
+      community.general.pip:
+        name: docker
+        state: present
+        executable: pip3
+      tags: [ bootstrap ]
 
     - name: Ensure Docker service is started and enabled
       become: true
