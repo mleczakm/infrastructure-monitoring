@@ -17,7 +17,9 @@ jobs:
 
       # 1) GitHub Actions workflow lint
       - name: Lint GitHub Actions workflows (actionlint)
-        uses: rhysd/actionlint@v1
+        uses: cssnr/actionlint-action@master
+        with:
+          version: v1.7.11
 
       # 2) YAML lint (opcjonalnie, ale polecam)
       - name: YAML lint
