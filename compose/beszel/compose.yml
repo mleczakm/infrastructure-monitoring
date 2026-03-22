@@ -8,7 +8,7 @@ services:
     volumes:
       - "beszel_data:/beszel_data"
     environment:
-      - TZ=${TZ}
+      - TZ=Europe/Warsaw
 
   beszel-agent:
     image: henrygd/beszel-agent
