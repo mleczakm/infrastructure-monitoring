@@ -84,6 +84,14 @@
         append: true
       tags: [bootstrap]
 
+    - name: Ensure /etc/docker directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: "0755"
+      tags: [bootstrap]
+
     - name: Configure Docker log rotation
       become: true
       ansible.builtin.copy:
