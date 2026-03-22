@@ -1,8 +1,9 @@
+---
 name: Weekly FROG login & update
 
 on:
   schedule:
-    - cron: "7 6 * * 1" # co poniedziałek 06:07 UTC
+    - cron: "7 6 * * 1"  # co poniedziałek 06:07 UTC
   workflow_dispatch:
 
 jobs:
@@ -36,10 +37,8 @@ jobs:
               set -euo pipefail
               apk update
               apk upgrade -U
-            
               echo "[cleanup] docker system prune"
               docker system prune -af --volumes
-            
               echo "[cleanup] large logs"
               find /var/log -type f -name "*.log" -size +1M -exec truncate -s 0 {} \;
             '
