@@ -50,7 +50,7 @@
     # -------------------------
     - name: Install Docker + Python Docker SDK on Alpine
       become: true
-      ansible.builtin.apk:
+      community.general.apk:
         name:
           - docker
           - python3

@@ -30,7 +30,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install "ansible>=9,<11"
-          ansible-galaxy collection install community.docker
+          ansible-galaxy collection install community.docker community.general
 
       # (Opcjonalnie, lepsze security niż StrictHostKeyChecking=no)
       # Jeśli nie chcesz tego utrzymywać, usuń ten krok i zostań przy -o StrictHostKeyChecking=no
