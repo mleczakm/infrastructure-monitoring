@@ -213,7 +213,7 @@
     - name: Check beszel-agent container state
       become: true
       when: deploy_beszel_agent
-      ansible.builtin.command: "docker inspect -f '{{'{{'}}.State.Running{{'}}'}}' {{ beszel_agent_name }}"
+      ansible.builtin.command: "docker inspect -f '{{ '{{' }}.State.Running{{ '}}' }}' {{ beszel_agent_name }}"
       register: beszel_agent_running
       changed_when: false
       failed_when: beszel_agent_running.stdout.strip() != 'true'
