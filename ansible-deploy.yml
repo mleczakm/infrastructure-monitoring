@@ -84,6 +84,30 @@
         append: true
       tags: [bootstrap]
 
+    - name: Configure Docker log rotation
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "live-restore": true,
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "1m",
+              "max-file": "3"
+            },
+            "log-level": "warn"
+          }
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Docker
+      tags: [bootstrap]
+
+    - name: Apply Docker log config immediately (if changed)
+      ansible.builtin.meta: flush_handlers
+      tags: [bootstrap]
+
     - name: Verify Docker daemon is reachable
       become: true
       ansible.builtin.command: docker info
@@ -227,3 +251,10 @@
       changed_when: false
       failed_when: beszel_agent_running.stdout.strip() != 'true'
       tags: [agent, health]
+
+  handlers:
+    - name: Restart Docker
+      become: true
+      ansible.builtin.service:
+        name: docker
+        state: restarted
