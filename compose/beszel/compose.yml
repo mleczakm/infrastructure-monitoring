@@ -14,7 +14,7 @@ services:
     image: henrygd/beszel-agent
     container_name: beszel-agent
     restart: unless-stopped
-    network_mode: host
+    privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./beszel_agent_data:/var/lib/beszel-agent

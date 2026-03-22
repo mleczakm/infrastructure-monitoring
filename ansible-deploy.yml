@@ -149,3 +149,14 @@
         docker compose -f compose/uptime-kuma/compose.yml up -d
       args:
         executable: /bin/sh
+
+    - name: Verify .env exists on remote
+      become: true
+      stat:
+        path: /opt/infrastructure-monitoring/.env
+      register: env_stat
+
+    - name: Fail if .env is missing
+      fail:
+        msg: ".env file is missing on the remote server!"
+      when: not env_stat.stat.exists

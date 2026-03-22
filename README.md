@@ -1,7 +1,6 @@
 # infrastructure-monitoring (Mikr.us FROG)
 
-Repozytorium zawiera Compose do uruchomienia na FROG-u: **Beszel (Hub+Agent)**, **Uptime Kuma**
-oraz szkielet backupów **Restic (resticprofile)**. Domyślna adresacja korzysta z subdomen `wykr.es`
+Repozytorium zawiera Compose do uruchomienia na FROG-u: **Beszel (Hub+Agent)** oraz **Uptime Kuma**. Domyślna adresacja korzysta z subdomen `wykr.es`
 zgodnie z dokumentacją FROG.
 
 ---
@@ -82,7 +81,7 @@ Uwaga: `appleboy/ssh-action` i `scp-action` w trybie dry-run nie łączą się z
 
 ---
 
-### 2. Walidacja Docker Compose
+### 1. Walidacja Docker Compose
 
 - Sprawdź składnię i interpolację environment:
 
@@ -99,42 +98,7 @@ Polecenie `config` nie uruchamia kontenerów, ale wypluwa złączoną i zweryfik
 
 ---
 
-### 3. Szybki test skryptu instalacyjnego w kontenerze Alpine
-
-- Uruchom jednorazowy kontener Alpine i przekaż skrypt do środka:
-
-```bash
-docker run --rm -it -v "$PWD/scripts:/scripts" alpine:3.19 sh -lc '
-  apk add --no-cache bash curl sudo || true;
-  chmod +x /scripts/install_docker_alpine.sh;
-  /scripts/install_docker_alpine.sh || echo "Skrypt zakończył się kodem błędu (spodziewane w środowisku testowym)";
-  which docker || echo "Docker nieaktywny w tym kontenerze — to spodziewane"
-'
-```
-
----
-
-### 4. Mini smoke test z lokalnym Dockerem
-
-Jeśli chcesz uruchomić usługi lokalnie (na własnym Macu), pamiętaj o ograniczeniach portów i katalogów danych. Możesz wykonać:
-
-```bash
-# Upewnij się, że masz Docker Desktop
-open -a Docker
-
-# Uruchom pojedynczo, np. Uptime Kuma
-docker compose -f compose/uptime-kuma/compose.yml up -d
-
-# Podgląd logów
-docker compose -f compose/uptime-kuma/compose.yml logs -f --tail=100
-
-# Zatrzymanie
-docker compose -f compose/uptime-kuma/compose.yml down
-```
-
----
-
-### 5. Checklist przed prawdziwym deployem
+### 2. Checklist przed prawdziwym deployem
 
 - `.env` istnieje i ma: BESZEL_HOSTNAME, KUMA_HOSTNAME (oraz FROG_HOST/FROG_SSH_PORT jeśli używasz ich lokalnie)
 - Sekrety repo ustawione: `FROG_SERVER`, `FROG_SSH_PORT`, `FROG_LOGIN`, `FROG_PASSWORD`, `BESZEL_AGENT_KEY`, `BESZEL_AGENT_TOKEN`, `BESZEL_AGENT_HUB_URL`
