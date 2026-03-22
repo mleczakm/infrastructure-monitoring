@@ -26,7 +26,7 @@ jobs:
       - name: YAML lint
         uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: ".github/workflows ansible-deploy.yml ansible-inventory"
+          file_or_dir: ".github/workflows ansible-deploy.yml"
           config_data: |
             extends: default
             rules:
