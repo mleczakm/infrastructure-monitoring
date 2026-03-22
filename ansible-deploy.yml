@@ -7,11 +7,13 @@
     frog_ssh_port: "{{ lookup('env', 'FROG_SSH_PORT') }}"
     frog_login: "{{ lookup('env', 'FROG_LOGIN') }}"
     frog_password: "{{ lookup('env', 'FROG_PASSWORD') }}"
-    # Derive FROG number from hostname (first numeric sequence)
-    frog_num: "{{ frog_host | regex_search('([0-9]+)', '\\1') }}"
-    beszel_hostname: "frog03-{{ frog_num }}.wykr.es"
-    kuma_hostname: "frog03-{{ (frog_num | int + 10000) }}.wykr.es"
-    env_file: "/opt/infrastructure-monitoring/.env"
+    frog_prefix: "{{ frog_host.split('.')[0] }}"
+
+    beszel_port: "{{ (frog_ssh_port | int + 10000) }}"
+    beszel_hostname: "{{ frog_prefix }}-{{ beszel_port }}.wykr.es"
+    kuma_port: "{{ (frog_ssh_port | int + 20000) }}"
+    kuma_hostname: "{{ frog_prefix }}-{{ kuma_port }}.wykr.es"
+
     ansible_user: "{{ frog_login }}"
     ansible_ssh_pass: "{{ frog_password }}"
     ansible_port: "{{ frog_ssh_port }}"
@@ -27,62 +29,6 @@
         group: "{{ frog_login }}"
         mode: '0755'
 
-    - name: Prepare .env file on controller
-      delegate_to: localhost
-      run_once: true
-      block:
-        - name: Copy .env.example to .env if exists, else create empty
-          copy:
-            src: .env.example
-            dest: .env
-            remote_src: no
-          ignore_errors: yes
-        - name: Ensure .env exists
-          file:
-            path: .env
-            state: touch
-        - name: Set/replace FROG_HOST
-          lineinfile:
-            path: .env
-            regexp: '^FROG_HOST='
-            line: "FROG_HOST={{ frog_host }}"
-            create: yes
-        - name: Set/replace FROG_SSH_PORT
-          lineinfile:
-            path: .env
-            regexp: '^FROG_SSH_PORT='
-            line: "FROG_SSH_PORT={{ frog_ssh_port }}"
-            create: yes
-        - name: Set/replace BESZEL_HOSTNAME
-          lineinfile:
-            path: .env
-            regexp: '^BESZEL_HOSTNAME='
-            line: "BESZEL_HOSTNAME={{ beszel_hostname }}"
-            create: yes
-        - name: Set/replace KUMA_HOSTNAME
-          lineinfile:
-            path: .env
-            regexp: '^KUMA_HOSTNAME='
-            line: "KUMA_HOSTNAME={{ kuma_hostname }}"
-            create: yes
-        - name: Set/replace KEY
-          lineinfile:
-            path: .env
-            regexp: '^BESZEL_AGENT_KEY='
-            line: "BESZEL_AGENT_KEY={{ lookup('env', 'BESZEL_AGENT_KEY') }}"
-            create: yes
-        - name: Set/replace TOKEN
-          lineinfile:
-            path: .env
-            regexp: '^BESZEL_AGENT_TOKEN='
-            line: "BESZEL_AGENT_TOKEN={{ lookup('env', 'BESZEL_AGENT_TOKEN') }}"
-            create: yes
-        - name: Set/replace HUB_URL
-          lineinfile:
-            path: .env
-            regexp: '^BESZEL_AGENT_HUB_URL='
-            line: "BESZEL_AGENT_HUB_URL={{ lookup('env', 'BESZEL_AGENT_HUB_URL') }}"
-            create: yes
 
     - name: Copy compose directory to remote
       become: true
@@ -93,14 +39,6 @@
         group: "{{ frog_login }}"
         mode: preserve
 
-    - name: Copy .env to remote
-      become: true
-      copy:
-        src: .env
-        dest: /opt/infrastructure-monitoring/.env
-        owner: "{{ frog_login }}"
-        group: "{{ frog_login }}"
-        mode: '0644'
 
     - name: Install Docker and Docker Compose on Alpine
       become: true
@@ -132,9 +70,10 @@
       become: true
       shell: |
         cd /opt/infrastructure-monitoring
-        set -a
-        . .env
-        set +a
+        BESZEL_PORT_HOST="{{ beszel_port }}" \
+        BESZEL_AGENT_KEY="{{ lookup('env', 'BESZEL_AGENT_KEY') }}" \
+        BESZEL_AGENT_TOKEN="{{ lookup('env', 'BESZEL_AGENT_TOKEN') }}" \
+        BESZEL_AGENT_HUB_URL="https://{{ beszel_hostname }}" \
         docker compose -f compose/beszel/compose.yml up -d
       args:
         executable: /bin/sh
@@ -143,20 +82,8 @@
       become: true
       shell: |
         cd /opt/infrastructure-monitoring
-        set -a
-        . .env
-        set +a
+        KUMA_PORT_HOST="{{ kuma_port }}" \
         docker compose -f compose/uptime-kuma/compose.yml up -d
       args:
         executable: /bin/sh
 
-    - name: Verify .env exists on remote
-      become: true
-      stat:
-        path: /opt/infrastructure-monitoring/.env
-      register: env_stat
-
-    - name: Fail if .env is missing
-      fail:
-        msg: ".env file is missing on the remote server!"
-      when: not env_stat.stat.exists
