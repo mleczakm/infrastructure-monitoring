@@ -57,7 +57,7 @@
           - py3-pip
         state: present
         update_cache: true
-      tags: [ bootstrap ]
+      tags: [bootstrap]
 
     - name: Install Docker SDK for Python (pip)
       become: true
@@ -65,7 +65,7 @@
         name: docker
         state: present
         executable: pip3
-      tags: [ bootstrap ]
+      tags: [bootstrap]
 
     - name: Ensure Docker service is started and enabled
       become: true
