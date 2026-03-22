@@ -1,6 +1,6 @@
 # infrastructure-monitoring (Mikr.us FROG)
 
-Repozytorium zawiera Compose do uruchomienia na FROG-u: **Beszel (Hub+Agent)** oraz **Uptime Kuma**. Domyślna adresacja korzysta z subdomen `wykr.es`
+Repozytorium zawiera Compose do uruchomienia na FROG-u **Beszel (Hub+Agent)**. Domyślna adresacja korzysta z subdomen `wykr.es`
 zgodnie z dokumentacją FROG.
 
 ---
@@ -10,11 +10,9 @@ zgodnie z dokumentacją FROG.
 1. Sklonuj repo i uzupełnij `.env` na podstawie `.env.example`.
 2. Ustaw **sekrety GitHub Actions**:
    - `FROG_SERVER`, `FROG_SSH_PORT`, `FROG_LOGIN`, `FROG_PASSWORD`
-   - `BESZEL_AGENT_KEY`, `BESZEL_AGENT_TOKEN`, `BESZEL_AGENT_HUB_URL`
+   - `BESZEL_AGENT_KEY`, `BESZEL_AGENT_TOKEN` (dostępne po skonfigurowaniau Beszela)
 3. Uruchom workflow **Deploy to FROG** (ręcznie lub po pushu na `main`).
-4. Wejdź na:
-   - Beszel: `http://$BESZEL_HOSTNAME`
-   - Uptime Kuma: `http://$KUMA_HOSTNAME`
+4. Wejdź na adres `http://{twoj-frog}-{port ssh + 10 000}.wykr.es`
 
 ---
 
@@ -22,8 +20,8 @@ zgodnie z dokumentacją FROG.
 
 - Instaluje Docker + Compose v2 na Alpine (`apk add docker docker-cli-compose`)
 - Tworzy katalogi danych w `/opt/infrastructure-monitoring`
-- Kopiuje pliki Compose i `.env` na serwer
-- Uruchamia Compose dla Beszel i Uptime Kuma
+- Kopiuje plik Compose na serwer
+- Uruchamia Compose dla Beszel
 - Sekrety (klucze, tokeny) są przekazywane wyłącznie przez zmienne środowiskowe i nie są trzymane w repozytorium
 
 ---
