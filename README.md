@@ -39,12 +39,12 @@ Domyślna adresacja korzysta z subdomen `wykr.es` zgodnie z dokumentacją FROG.
 4. Wejdź na adres:
 
 ```
-http://{twoj-frog}-{SSH_PORT + 10000}.wykr.es
+https://{twoj-frog}-{SSH_PORT + 10000}.wykr.es
 ```
 
 Przykład:
 ```
-http://frog123-12222.wykr.es
+https://frog03-12222.wykr.es
 ```
 
 ---
