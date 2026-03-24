@@ -1,4 +1,3 @@
----
 name: Weekly FROG login & update
 
 on:
@@ -28,19 +27,22 @@ jobs:
           password: ${{ secrets.FROG_PASSWORD }}
           port: ${{ secrets.FROG_SSH_PORT }}
           script_stop: true
+          envs: FROG_PASSWORD
           script: |
-            set -euo pipefail
+            set -eu
+              : "${FROG_PASSWORD:?FROG_PASSWORD is not set}"
+
             echo "Login timestamp (UTC): $(date -u)"
 
             # Non-interactive sudo using password from env
-            echo "$FROG_PASSWORD" | sudo -S -i sh -lc '
-              set -euo pipefail
+            echo "$FROG_PASSWORD" | sudo -S /bin/sh -c '
+              set -eu
               apk update
               apk upgrade -U
               echo "[cleanup] docker system prune"
               docker system prune -af --volumes
               echo "[cleanup] large logs"
-              find /var/log -type f -name "*.log" -size +1M -exec truncate -s 0 {} \;
+              find /var/log -type f -name "*.log" -size +1024k -exec truncate -s 0 {} \;
             '
 
       - name: Create or update GitHub Issue on failure (no spam)
@@ -55,7 +57,6 @@ jobs:
             const label = 'infra-alert';
             const now = new Date().toISOString();
 
-            // Find existing open issue with the label and same title
             const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -76,14 +77,14 @@ jobs:
               '- dane SSH (host/port/login/hasło)',
               '- czy sudo działa non-interactive',
             ];
-            const body = bodyLines.join('\\n');
+            const body = bodyLines.join('\n');
 
             if (existing) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existing.number,
-                body: `Kolejna próba nieudana.\\n\\n${body}`,
+                body: `Kolejna próba nieudana.\n\n${body}`,
               });
               core.info(`Updated existing issue: #${existing.number}`);
             } else {
