@@ -16,7 +16,9 @@
     # Beszel (HUB)
     beszel_port: "{{ (frog_ssh_port | int + 10000) }}"
     beszel_hostname: "{{ frog_prefix }}-{{ beszel_port }}.wykr.es"
-    beszel_image: "henrygd/beszel:latest"   # TODO: pin to a concrete version tag
+    # Custom fork (mleczakm/beszel) adding container-health alerts with a Discord/webhook
+    # log excerpt (error/fatal lines) on unhealthy containers: https://github.com/mleczakm/beszel
+    beszel_image: "ghcr.io/mleczakm/beszel/beszel:0.18.7-container-alerts.2"
 
     # Beszel Agent
     beszel_agent_image: "henrygd/beszel-agent:latest"  # TODO: pin to a concrete version tag
