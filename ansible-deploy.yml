@@ -18,7 +18,7 @@
     beszel_hostname: "{{ frog_prefix }}-{{ beszel_port }}.wykr.es"
     # Custom fork (mleczakm/beszel) adding container-health alerts with a Discord/webhook
     # log excerpt (error/fatal lines) on unhealthy containers: https://github.com/mleczakm/beszel
-    beszel_image: "ghcr.io/mleczakm/beszel/beszel:0.18.7-container-alerts.2"
+    beszel_image: "ghcr.io/mleczakm/beszel/beszel:0.18.7-container-alerts.3"
 
     # Beszel Agent
     beszel_agent_image: "henrygd/beszel-agent:latest"  # TODO: pin to a concrete version tag
